@@ -9,14 +9,15 @@ const gitService = new GitService();
 app.use(cors());
 app.use(express.json());
 
-// Set repository path
+// Set repository path (local or remote URL)
 app.post('/api/repo', async (req, res) => {
   try {
-    const { path } = req.body;
-    if (!path) {
-      return res.status(400).json({ error: 'Path is required' });
+    const { path: inputPath } = req.body;
+    if (!inputPath) {
+      return res.status(400).json({ error: 'Path or URL is required' });
     }
-    const result = await gitService.setRepo(path);
+
+    const result = await gitService.setRepo(inputPath);
     const stats = await gitService.getStats();
     res.json({ ...result, stats });
   } catch (err) {
@@ -63,6 +64,17 @@ app.get('/api/stats', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Cleanup temp clones on shutdown
+process.on('SIGINT', () => {
+  gitService.cleanup();
+  process.exit();
+});
+
+process.on('SIGTERM', () => {
+  gitService.cleanup();
+  process.exit();
 });
 
 app.listen(PORT, () => {

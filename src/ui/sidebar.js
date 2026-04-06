@@ -66,7 +66,7 @@ export class Sidebar {
       const item = document.createElement('div');
       item.className = 'branch-item active';
       item.innerHTML = `
-        <span class="branch-color-dot" style="background: ${branch.color}; box-shadow: 0 0 6px ${branch.color}"></span>
+        <span class="branch-color-dot" style="background: ${branch.color}"></span>
         <span class="branch-name">${branch.name}</span>
         ${branch.current ? '<span class="branch-current">HEAD</span>' : ''}
       `;

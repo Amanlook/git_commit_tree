@@ -1,6 +1,7 @@
 import simpleGit from 'simple-git';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
 // Vibrant neon colors for branches
 const BRANCH_COLORS = [
@@ -20,17 +21,113 @@ export class GitService {
   constructor() {
     this.git = null;
     this.repoPath = null;
+    this._clonedPaths = []; // track temp dirs for cleanup
   }
 
-  async setRepo(repoPath) {
+  /**
+   * Detect if input is a URL or a local path.
+   */
+  static isUrl(input) {
+    return /^https?:\/\//.test(input) ||
+           /^git@/.test(input) ||
+           /^ssh:\/\//.test(input) ||
+           /^github\.com\//.test(input) ||
+           /^gitlab\.com\//.test(input) ||
+           /^bitbucket\.org\//.test(input);
+  }
+
+  /**
+   * Normalize shorthand URLs like "github.com/user/repo" to full HTTPS URLs.
+   */
+  static normalizeUrl(input) {
+    let url = input.trim();
+
+    // Handle shorthand: github.com/user/repo -> https://github.com/user/repo
+    if (/^(github\.com|gitlab\.com|bitbucket\.org)\//.test(url)) {
+      url = `https://${url}`;
+    }
+
+    // Remove trailing .git if present (we'll add it back for consistency)
+    url = url.replace(/\.git\/?$/, '');
+
+    // Add .git suffix for HTTPS clones
+    if (url.startsWith('https://') && !url.endsWith('.git')) {
+      url = `${url}.git`;
+    }
+
+    return url;
+  }
+
+  /**
+   * Extract repo name from URL for display.
+   */
+  static repoNameFromUrl(url) {
+    const cleaned = url.replace(/\.git\/?$/, '');
+    const parts = cleaned.split('/');
+    const repo = parts.pop();
+    const owner = parts.pop();
+    return owner ? `${owner}/${repo}` : repo;
+  }
+
+  /**
+   * Set repository — handles both local paths and remote URLs.
+   */
+  async setRepo(input) {
+    const trimmed = input.trim();
+
+    if (GitService.isUrl(trimmed)) {
+      return this._cloneRemote(trimmed);
+    } else {
+      return this._setLocalRepo(trimmed);
+    }
+  }
+
+  /**
+   * Clone a remote repository to a temp directory.
+   */
+  async _cloneRemote(urlInput) {
+    const url = GitService.normalizeUrl(urlInput);
+    const repoName = GitService.repoNameFromUrl(url).replace(/\//g, '_');
+    const tempDir = path.join(os.tmpdir(), `gittree_${repoName}_${Date.now()}`);
+
+    try {
+      // Shallow clone with all branches for speed
+      const git = simpleGit();
+      await git.clone(url, tempDir, [
+        '--bare',           // bare clone — no working tree, much faster
+        '--filter=blob:none' // skip blobs, we only need commit history
+      ]);
+
+      this.repoPath = tempDir;
+      this.git = simpleGit(tempDir);
+      this._clonedPaths.push(tempDir);
+
+      const displayName = GitService.repoNameFromUrl(url);
+
+      return {
+        path: tempDir,
+        valid: true,
+        remote: true,
+        url: url,
+        displayName,
+      };
+    } catch (err) {
+      // Clean up partial clone on failure
+      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch {}
+      throw new Error(`Failed to clone repository: ${err.message}`);
+    }
+  }
+
+  /**
+   * Set a local repo path.
+   */
+  async _setLocalRepo(repoPath) {
     const resolvedPath = path.resolve(repoPath);
 
-    // Check if path exists
     if (!fs.existsSync(resolvedPath)) {
       throw new Error(`Path does not exist: ${resolvedPath}`);
     }
 
-    // Check if it's a git repo
     const gitDir = path.join(resolvedPath, '.git');
     if (!fs.existsSync(gitDir)) {
       throw new Error(`Not a git repository: ${resolvedPath}`);
@@ -38,7 +135,13 @@ export class GitService {
 
     this.repoPath = resolvedPath;
     this.git = simpleGit(resolvedPath);
-    return { path: resolvedPath, valid: true };
+
+    return {
+      path: resolvedPath,
+      valid: true,
+      remote: false,
+      displayName: path.basename(resolvedPath),
+    };
   }
 
   async getLog(maxCount = 500) {
@@ -58,8 +161,6 @@ export class GitService {
       branchColorMap[b.name] = BRANCH_COLORS[i % BRANCH_COLORS.length];
     });
 
-    // Parse ref decorations to assign branches to commits
-    const refMap = {};
     const lines = log.trim().split('\n').filter(Boolean);
 
     const commits = lines.map((line) => {
@@ -68,7 +169,6 @@ export class GitService {
 
       const parentList = parents ? parents.trim().split(' ').filter(Boolean) : [];
 
-      // Parse refs (branch names, tags)
       const refList = [];
       if (refs && refs.trim()) {
         refs.split(',').forEach((r) => {
@@ -109,7 +209,6 @@ export class GitService {
     const branches = [];
 
     for (const [name, info] of Object.entries(branchData.branches)) {
-      // Skip remotes that have local counterpart
       if (name.startsWith('remotes/origin/') && 
           branchData.branches[name.replace('remotes/origin/', '')]) {
         continue;
@@ -146,7 +245,6 @@ export class GitService {
       header.split('|');
     const body = bodyParts.join('|');
 
-    // Parse stat
     const statLines = show.split('\n').slice(1);
     const files = [];
     let totalInsertions = 0;
@@ -231,10 +329,17 @@ export class GitService {
       activityMap: dates,
     };
   }
+
+  /** Clean up all temp clone directories */
+  cleanup() {
+    for (const dir of this._clonedPaths) {
+      try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+    }
+    this._clonedPaths = [];
+  }
 }
 
 function hashEmail(email) {
-  // Simple hash for gravatar — not MD5 but works for identicon fallback
   let hash = 0;
   for (let i = 0; i < (email || '').length; i++) {
     const char = email.charCodeAt(i);
