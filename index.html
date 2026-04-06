@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="GitTree — Interactive git commit history visualization with animated graphs and beautiful UI" />
+  <title>GitTree — Git History Visualizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/styles/main.css" />
+  <link rel="stylesheet" href="/src/styles/components.css" />
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-content">
+      <div class="loading-logo">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+          <circle cx="32" cy="12" r="6" fill="#00f0ff" class="node-pulse" />
+          <circle cx="16" cy="36" r="6" fill="#ff00e5" class="node-pulse" style="animation-delay: 0.3s" />
+          <circle cx="48" cy="36" r="6" fill="#a8ff00" class="node-pulse" style="animation-delay: 0.6s" />
+          <circle cx="32" cy="56" r="6" fill="#ffaa00" class="node-pulse" style="animation-delay: 0.9s" />
+          <line x1="32" y1="18" x2="16" y2="30" stroke="#00f0ff" stroke-width="2" opacity="0.6" />
+          <line x1="32" y1="18" x2="48" y2="30" stroke="#00f0ff" stroke-width="2" opacity="0.6" />
+          <line x1="16" y1="42" x2="32" y2="50" stroke="#ff00e5" stroke-width="2" opacity="0.6" />
+          <line x1="48" y1="42" x2="32" y2="50" stroke="#a8ff00" stroke-width="2" opacity="0.6" />
+        </svg>
+      </div>
+      <h1 class="loading-title">GitTree</h1>
+      <p class="loading-subtitle">Loading your commit universe...</p>
+      <div class="loading-bar">
+        <div class="loading-bar-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="app" class="app hidden">
+    <!-- Stats Bar (Top) -->
+    <header id="stats-bar" class="stats-bar">
+      <div class="stats-bar-left">
+        <div class="logo-mark">
+          <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="12" r="6" fill="#00f0ff" />
+            <circle cx="16" cy="36" r="6" fill="#ff00e5" />
+            <circle cx="48" cy="36" r="6" fill="#a8ff00" />
+            <circle cx="32" cy="56" r="6" fill="#ffaa00" />
+            <line x1="32" y1="18" x2="16" y2="30" stroke="#00f0ff" stroke-width="2.5" opacity="0.6" />
+            <line x1="32" y1="18" x2="48" y2="30" stroke="#00f0ff" stroke-width="2.5" opacity="0.6" />
+            <line x1="16" y1="42" x2="32" y2="50" stroke="#ff00e5" stroke-width="2.5" opacity="0.6" />
+            <line x1="48" y1="42" x2="32" y2="50" stroke="#a8ff00" stroke-width="2.5" opacity="0.6" />
+          </svg>
+        </div>
+        <h1 class="app-title">GitTree</h1>
+        <span class="repo-name" id="repo-name"></span>
+      </div>
+      <div class="stats-bar-center" id="stats-pills">
+        <!-- Stats pills injected here -->
+      </div>
+      <div class="stats-bar-right">
+        <button id="btn-toggle-sidebar" class="icon-btn" title="Toggle Sidebar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <!-- Sidebar (Left) -->
+      <aside id="sidebar" class="sidebar">
+        <div class="sidebar-section">
+          <label class="sidebar-label">Repository Path</label>
+          <div class="repo-input-group">
+            <input type="text" id="repo-path-input" class="repo-input" placeholder="/path/to/your/repo" />
+            <button id="btn-load-repo" class="btn-primary btn-load">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="sidebar-section" id="branches-section" style="display:none">
+          <label class="sidebar-label">
+            Branches
+            <span class="badge" id="branch-count">0</span>
+          </label>
+          <div class="branch-list" id="branch-list">
+            <!-- Branch items injected here -->
+          </div>
+        </div>
+
+        <div class="sidebar-section" id="authors-section" style="display:none">
+          <label class="sidebar-label">
+            Contributors
+            <span class="badge" id="author-count">0</span>
+          </label>
+          <div class="author-list" id="author-list">
+            <!-- Author items injected here -->
+          </div>
+        </div>
+
+        <div class="sidebar-section" id="search-section" style="display:none">
+          <label class="sidebar-label">Search Commits</label>
+          <input type="text" id="search-input" class="search-input" placeholder="Search commit messages..." />
+        </div>
+
+        <div class="sidebar-section" id="heatmap-section" style="display:none">
+          <label class="sidebar-label">Activity</label>
+          <div class="heatmap-container" id="heatmap-container">
+            <!-- Heatmap injected here -->
+          </div>
+        </div>
+      </aside>
+
+      <!-- Canvas Area -->
+      <div class="canvas-container" id="canvas-container">
+        <canvas id="graph-canvas"></canvas>
+        
+        <!-- Welcome overlay -->
+        <div id="welcome-overlay" class="welcome-overlay">
+          <div class="welcome-card">
+            <div class="welcome-icon">
+              <svg width="80" height="80" viewBox="0 0 64 64" fill="none">
+                <circle cx="32" cy="12" r="6" fill="#00f0ff" class="node-pulse" />
+                <circle cx="16" cy="36" r="6" fill="#ff00e5" class="node-pulse" style="animation-delay: 0.3s" />
+                <circle cx="48" cy="36" r="6" fill="#a8ff00" class="node-pulse" style="animation-delay: 0.6s" />
+                <circle cx="32" cy="56" r="6" fill="#ffaa00" class="node-pulse" style="animation-delay: 0.9s" />
+                <line x1="32" y1="18" x2="16" y2="30" stroke="#00f0ff" stroke-width="2" opacity="0.6" />
+                <line x1="32" y1="18" x2="48" y2="30" stroke="#00f0ff" stroke-width="2" opacity="0.6" />
+                <line x1="16" y1="42" x2="32" y2="50" stroke="#ff00e5" stroke-width="2" opacity="0.6" />
+                <line x1="48" y1="42" x2="32" y2="50" stroke="#a8ff00" stroke-width="2" opacity="0.6" />
+              </svg>
+            </div>
+            <h2>Welcome to GitTree</h2>
+            <p>Enter a repository path in the sidebar to visualize your git history</p>
+            <div class="welcome-hint">
+              <kbd>Scroll</kbd> to zoom &nbsp;·&nbsp; <kbd>Drag</kbd> to pan &nbsp;·&nbsp; <kbd>Click</kbd> a commit for details
+            </div>
+          </div>
+        </div>
+
+        <!-- Zoom controls -->
+        <div class="zoom-controls" id="zoom-controls" style="display:none">
+          <button class="zoom-btn" id="btn-zoom-in" title="Zoom In">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <button class="zoom-btn" id="btn-zoom-reset" title="Reset View">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+          </button>
+          <button class="zoom-btn" id="btn-zoom-out" title="Zoom Out">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Commit Detail Panel (Right) -->
+      <div id="commit-panel" class="commit-panel">
+        <div class="commit-panel-header">
+          <h3>Commit Details</h3>
+          <button id="btn-close-panel" class="icon-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="commit-panel-content" id="commit-panel-content">
+          <!-- Detail content injected here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
