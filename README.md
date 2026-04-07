@@ -87,15 +87,6 @@ git_commit_tree/
 | `/api/log?max=N` | GET | Fetch up to N commits with topology |
 | `/api/branches` | GET | List all branches with colors |
 
-## Deploying
-
-The backend requires Node.js to run. You can deploy to:
-
-- **[Railway](https://railway.app)** — `railway up`
-- **[Render](https://render.com)** — connect GitHub repo, build: `npm run build`, start: `node server/index.js`
-- **[Fly.io](https://fly.io)** — `fly launch`
-
-> **Note:** GitHub Pages won't work since the backend needs a Node.js runtime.
 
 ## License
 
