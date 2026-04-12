@@ -1,9 +1,5 @@
 # GitTree 🌳
 
-> Visualize any Git repository as an interactive commit graph — supports local paths and remote GitHub/GitLab/Bitbucket URLs.
-
-![GitTree screenshot](https://raw.githubusercontent.com/Amanlook/git_commit_tree/main/preview.png)
-
 ## Features
 
 - **Remote URL support** — paste `github.com/user/repo` and it shallow-clones on the fly
