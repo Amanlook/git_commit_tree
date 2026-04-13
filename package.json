@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "concurrently \"node server/index.js\" \"vite\"",
     "dev:server": "node server/index.js",
-    "dev:client": "vite",
     "build": "vite build",
+    "dev:client": "vite",
     "preview": "vite preview"
   },
   "dependencies": {
