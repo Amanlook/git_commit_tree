@@ -9,7 +9,6 @@ const gitService = new GitService();
 app.use(cors());
 app.use(express.json());
 
-// Set repository path (local or remote URL)
 app.post('/api/repo', async (req, res) => {
   try {
     const { path: inputPath } = req.body;
