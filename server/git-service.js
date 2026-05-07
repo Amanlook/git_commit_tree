@@ -4,6 +4,7 @@ import fs from 'fs';
 import os from 'os';
 
 // Vibrant neon colors for branches
+
 const BRANCH_COLORS = [
   '#00f0ff', // Cyan
   '#ff00e5', // Magenta
