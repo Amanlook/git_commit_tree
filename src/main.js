@@ -1,6 +1,4 @@
-/**
- * GitTree — Main Application Entry Point
- */
+
 
 import { GraphLayout } from './engine/graph-layout.js';
 import { Renderer } from './engine/renderer.js';
